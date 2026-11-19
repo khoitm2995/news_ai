@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GLOBAL NEWS AI – Tòa soạn Tin tức Quốc tế & Phân tích Xu hướng AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Merriweather:ital,wght@0,700;0,900;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- THANH TIN NÓNG CHẠY NGANG -->
+  <div class="breaking-bar" role="region" aria-label="Tin nóng trực tuyến">
+    <div class="breaking-label">
+      <span class="pulse-dot"></span>
+      <span>TIN NÓNG</span>
+    </div>
+    <div class="breaking-ticker-wrap">
+      <div class="breaking-ticker" id="breaking-ticker-content">
+        <span>Đang kết nối luồng dữ liệu từ các hãng thông tấn quốc tế...</span>
+      </div>
+    </div>
+    <div class="breaking-meta" id="last-updated-label">Chưa đồng bộ</div>
+  </div>
+
+  <!-- HEADER CHÍNH -->
+  <header class="top-header">
+    <div class="header-left">
+      <button class="icon-btn mobile-menu-btn" id="mobile-menu-toggle" aria-label="Mở danh mục">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      <a href="#trang-chu" class="brand-logo" id="logo-home-link">
+        <div class="brand-emblem">GN</div>
+        <div class="brand-text">
+          <span class="brand-title">GLOBAL NEWS AI</span>
+          <span class="brand-subtitle">TÒA SOẠN QUỐC TẾ &amp; PHÂN TÍCH TRÍ TUỆ NHÂN TẠO</span>
+        </div>
+      </a>
+    </div>
+
+    <div class="header-search">
+      <div class="search-box">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          type="search"
+          id="global-search-input"
+          placeholder="Tìm kiếm tin tức, quốc gia, nhân vật, hashtag..."
+          autocomplete="off"
+        />
+        <button class="clear-search-btn hidden" id="clear-search-btn" title="Xóa tìm kiếm">✕</button>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="status-pill" id="connection-status-pill" title="Trạng thái kết nối nguồn tin và AI">
+        <span class="status-dot offline" id="ai-status-dot"></span>
+        <span id="ai-status-text">AI: Chưa cấu hình</span>
+      </div>
+
+      <button class="btn btn-outline-sm" id="refresh-feeds-btn" title="Làm mới dữ liệu tin tức">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+        </svg>
+        <span class="hide-mobile">Cập nhật</span>
+      </button>
+
+      <button class="btn btn-ai-sm" id="open-world-analyst-btn" title="Mở Trợ lý AI Phân tích Thế giới">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2a4 4 0 0 1 4 4v2h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2V6a4 4 0 0 1 4-4z"></path>
+          <circle cx="9" cy="13" r="1"></circle>
+          <circle cx="15" cy="13" r="1"></circle>
+        </svg>
+        <span>Trợ lý AI</span>
+      </button>
+
+      <button class="icon-btn" id="theme-toggle-btn" title="Chuyển chế độ sáng / tối" aria-label="Chuyển giao diện sáng tối">
+        <svg id="theme-icon-sun" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg id="theme-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
+
+      <button class="icon-btn" id="open-settings-btn" title="Cấu hình kết nối API" aria-label="Cài đặt API">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- BỐ CỤC CHÍNH 3 CỘT -->
+  <div class="app-shell">
+    <!-- THANH ĐIỀU HƯỚNG BÊN TRÁI -->
+    <aside class="left-sidebar" id="left-sidebar">
+      <div class="sidebar-header-mobile">
+        <span>DANH MỤC TÒA SOẠN</span>
+        <button class="icon-btn" id="close-mobile-menu">✕</button>
+      </div>
+
+      <nav class="nav-list" aria-label="Chuyên mục tin tức">
+        <button class="nav-item active" data-view="trang-chu">
+          <span class="nav-icon">🏠</span>
+          <span>Trang chủ</span>
+        </button>
+        <button class="nav-item" data-view="tin-nong">
+          <span class="nav-icon">🔥</span>
+          <span>Tin nóng</span>
+          <span class="nav-badge badge-red" id="count-tin-nong">0</span>
+        </button>
+        <button class="nav-item" data-view="chinh-tri">
+          <span class="nav-icon">🏛️</span>
+          <span>Chính trị</span>
+        </button>
+        <button class="nav-item" data-view="kinh-te">
+          <span class="nav-icon">📈</span>
+          <span>Kinh tế</span>
+        </button>
+        <button class="nav-item" data-view="the-thao">
+          <span class="nav-icon">⚽</span>
+          <span>Thể thao</span>
+        </button>
+        <button class="nav-item" data-view="cong-nghe">
+          <span class="nav-icon">💻</span>
+          <span>Công nghệ</span>
+        </button>
+        <button class="nav-item" data-view="the-gioi">
+          <span class="nav-icon">🌐</span>
+          <span>Thế giới</span>
+        </button>
+
+        <!-- KHU VỰC CHUYÊN MỤC CÁ NHÂN HÓA -->
+        <div class="nav-divider-row">
+          <span class="nav-divider" style="padding:0;">CHUYÊN MỤC CỦA TÔI</span>
+          <button class="btn-create-topic-mini" id="sidebar-create-topic-btn" title="Tạo chuyên mục cá nhân mới">+ Tạo chuyên mục</button>
+        </div>
+
+        <div class="my-topics-sidebar-list" id="my-topics-sidebar-list">
+          <!-- Danh sách chuyên mục người dùng tự tạo render tại đây -->
+        </div>
+
+        <button class="nav-item" data-view="quan-ly-chuyen-muc">
+          <span class="nav-icon">🗂️</span>
+          <span>Quản lý chuyên mục</span>
+          <span class="nav-badge" id="count-my-topics">0</span>
+        </button>
+
+        <div class="nav-divider">XU HƯỚNG &amp; PHÂN TÍCH</div>
+
+        <button class="nav-item nav-item-social" data-view="mang-xa-hoi">
+          <span class="nav-icon">📱</span>
+          <span>Tin nóng mạng xã hội</span>
+          <span class="nav-badge badge-blue" id="count-social">0</span>
+        </button>
+        <button class="nav-item" data-view="phan-tich-chuyen-sau">
+          <span class="nav-icon">🧭</span>
+          <span>Phân tích chuyên sâu</span>
+        </button>
+        <button class="nav-item" data-view="ban-tin-trong-ngay">
+          <span class="nav-icon">🗞️</span>
+          <span>Bản tin trong ngày</span>
+        </button>
+        <button class="nav-item" data-view="tro-ly-ai">
+          <span class="nav-icon">🤖</span>
+          <span>Trợ lý AI Thế giới</span>
+        </button>
+
+        <div class="nav-divider">CÁ NHÂN HÓA</div>
+
+        <button class="nav-item" data-view="tin-da-luu">
+          <span class="nav-icon">🔖</span>
+          <span>Tin đã lưu</span>
+          <span class="nav-badge" id="count-saved">0</span>
+        </button>
+        <button class="nav-item" data-view="lich-su-doc">
+          <span class="nav-icon">🕒</span>
+          <span>Lịch sử đọc</span>
+        </button>
+        <button class="nav-item" data-view="cau-hinh-api">
+          <span class="nav-icon">⚙️</span>
+          <span>Cấu hình kết nối API</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer-card">
+        <div class="sidebar-card-title">Trạng thái nguồn dữ liệu</div>
+        <div class="feed-health-list" id="feed-health-summary">
+          <div class="health-row">
+            <span>Báo chí quốc tế (RSS):</span>
+            <strong id="rss-health-count">Đang tải...</strong>
+          </div>
+          <div class="health-row">
+            <span>Cộng đồng mạng (Reddit):</span>
+            <strong id="social-health-count">Đang tải...</strong>
+          </div>
+          <div class="health-row">
+            <span>Phân tích AI:</span>
+            <strong id="ai-health-label">Chưa kết nối</strong>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- KHU VỰC NỘI DUNG TRUNG TÂM -->
+    <main class="main-content" id="main-content-area">
+      <!-- Băng thông báo trạng thái API nếu chưa kết nối AI -->
+      <div class="api-warning-banner" id="api-warning-banner">
+        <div class="warning-banner-text">
+          <strong>Chế độ Đọc tin Trực tiếp (Chưa kết nối khóa AI):</strong>
+          <span>Tin tức quốc tế và xu hướng Reddit đang được tải từ nguồn công khai thật. Để bật tính năng Đề xuất từ khóa AI, Tóm tắt bài báo, Chat theo chuyên mục cá nhân và Trợ lý phân tích thế giới, vui lòng nhập khóa Gemini API hoặc OpenAI API.</span>
+        </div>
+        <button class="btn btn-ai-sm" id="banner-open-settings-btn">Cấu hình API ngay</button>
+      </div>
+
+      <!-- Khung hiển thị động theo từng chuyên mục / trang -->
+      <div id="view-container"></div>
+    </main>
+
+    <!-- THANH BÊN PHẢI: TRỢ LÝ AI & XU HƯỚNG THẾ GIỚI -->
+    <aside class="right-sidebar" id="right-sidebar">
+      <!-- Thẻ Chuyên mục cá nhân nhanh -->
+      <section class="right-card">
+        <div class="right-card-header">
+          <h3>Chuyên mục theo dõi</h3>
+          <button class="link-btn" id="right-create-topic-btn">+ Tạo mới</button>
+        </div>
+        <div id="right-my-topics-summary">
+          <p class="muted-small">Tạo chuyên mục riêng (ví dụ: Đô vật Mỹ, Trí tuệ nhân tạo, Bóng đá Ngoại hạng Anh) để hệ thống tự động gom tin theo từ khóa.</p>
+        </div>
+      </section>
+
+      <!-- Thẻ Trợ lý AI nhanh -->
+      <section class="right-card ai-quick-card">
+        <div class="right-card-header">
+          <div class="ai-badge-title">
+            <span class="ai-spark">✦</span>
+            <h3>Trợ lý AI Phân tích</h3>
+          </div>
+          <span class="tag-pill tag-blue" id="right-ai-state">Chưa kết nối</span>
+        </div>
+        <p class="right-card-desc">
+          Đặt câu hỏi nhanh về tình hình chính trị, kinh tế, xung đột hoặc các chủ đề đang gây tranh luận trên toàn cầu.
+        </p>
+        <div class="quick-prompts-list">
+          <button class="quick-prompt-chip" data-prompt="Tóm tắt bức tranh kinh tế và địa chính trị thế giới nổi bật nhất hôm nay dựa trên các bản tin hiện có.">
+            📊 Bức tranh thế giới hôm nay
+          </button>
+          <button class="quick-prompt-chip" data-prompt="Những rủi ro nào đang tác động trực tiếp đến thương mại và kinh tế Việt Nam từ các tin tức quốc tế hiện tại?">
+            🇻🇳 Tác động đến Việt Nam
+          </button>
+          <button class="quick-prompt-chip" data-prompt="Phân tích các chủ đề công nghệ và trí tuệ nhân tạo đang được thảo luận nhiều nhất hiện nay.">
+            🤖 Xu hướng công nghệ &amp; AI
+          </button>
+        </div>
+        <button class="btn btn-ai-full" id="right-open-analyst-btn">Mở phòng phân tích AI độc lập →</button>
+      </section>
+
+      <!-- Thẻ Xu hướng Thế giới (Nhóm chủ đề từ nhiều nguồn) -->
+      <section class="right-card">
+        <div class="right-card-header">
+          <h3>Xu hướng thế giới</h3>
+          <span class="muted-small">Nhóm đa nguồn</span>
+        </div>
+        <div class="trending-topics-list" id="right-trending-topics">
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line"></div>
+        </div>
+      </section>
+
+      <!-- Thẻ Chủ đề Mạng xã hội nổi bật -->
+      <section class="right-card">
+        <div class="right-card-header">
+          <h3>Sôi nổi trên mạng xã hội</h3>
+          <button class="link-btn" data-nav="mang-xa-hoi">Xem tất cả</button>
+        </div>
+        <div class="right-social-list" id="right-social-highlights">
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line"></div>
+        </div>
+      </section>
+
+      <!-- Thẻ Trạng thái các nền tảng MXH -->
+      <section class="right-card">
+        <div class="right-card-header">
+          <h3>Nguồn dữ liệu mạng xã hội</h3>
+        </div>
+        <div class="platform-status-list" id="platform-status-list"></div>
+      </section>
+    </aside>
+  </div>
+
+  <!-- MODAL TẠO / CHỈNH SỬA CHUYÊN MỤC CÁ NHÂN -->
+  <div class="article-modal-backdrop hidden" id="topic-editor-modal" role="dialog" aria-modal="true">
+    <div class="topic-modal-shell">
+      <div class="reader-topbar">
+        <strong id="topic-modal-title">✨ Tạo chuyên mục cá nhân mới</strong>
+        <button class="icon-btn" id="close-topic-modal-btn" aria-label="Đóng">✕</button>
+      </div>
+
+      <div class="topic-modal-body">
+        <form id="topic-editor-form">
+          <input type="hidden" id="topic-edit-id" value="" />
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="topic-name-input">Tên chuyên mục *</label>
+              <div style="display:flex;gap:8px;">
+                <input type="text" id="topic-name-input" placeholder="Ví dụ: Đô vật Mỹ, Kinh tế Bán dẫn, Giải Ngoại hạng Anh..." required />
+                <button type="button" class="btn btn-ai-sm" id="ai-suggest-keywords-btn" style="flex-shrink:0;">
+                  ✦ AI đề xuất từ khóa
+                </button>
+              </div>
+              <div class="form-help">Nhập tên chủ đề và nhấn "AI đề xuất từ khóa" để tự động gợi ý bộ từ khóa &amp; nhân vật liên quan.</div>
+            </div>
+
+            <div class="form-group">
+              <label for="topic-region-select">Phạm vi địa lý</label>
+              <select id="topic-region-select">
+                <option value="Toàn cầu">Toàn cầu</option>
+                <option value="Việt Nam">Việt Nam</option>
+                <option value="Mỹ">Mỹ</option>
+                <option value="Châu Âu">Châu Âu</option>
+                <option value="Châu Á">Châu Á</option>
+                <option value="Trung Quốc">Trung Quốc</option>
+                <option value="Tùy chỉnh">Tùy chỉnh (theo từ khóa địa phương)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="topic-desc-input">Mô tả chủ đề &amp; phạm vi quan tâm</label>
+            <input type="text" id="topic-desc-input" placeholder="Ví dụ: Theo dõi các sự kiện WWE, diễn biến giải đấu, chuyển nhượng và tin hậu trường..." />
+          </div>
+
+          <!-- Bộ từ khóa tìm kiếm -->
+          <div class="form-group">
+            <label>Từ khóa tìm kiếm &amp; ngữ nghĩa (Có thể thêm, sửa hoặc xóa từng từ khóa)</label>
+            <div class="tag-input-row">
+              <input type="text" id="topic-keyword-adder" placeholder="Nhập từ khóa rồi nhấn Thêm (VD: WWE Raw, WrestleMania...)" />
+              <button type="button" class="btn btn-outline-sm" id="add-keyword-btn">+ Thêm từ khóa</button>
+            </div>
+            <div class="chip-editor-box" id="topic-keywords-list">
+              <span class="muted-small">Chưa có từ khóa nào. Hãy thêm từ khóa hoặc dùng AI đề xuất.</span>
+            </div>
+          </div>
+
+          <!-- Nhân vật, tổ chức hoặc sự kiện cần theo dõi -->
+          <div class="form-group">
+            <label>Nhân vật, tổ chức hoặc sự kiện cần theo dõi</label>
+            <div class="tag-input-row">
+              <input type="text" id="topic-entity-adder" placeholder="Nhập tên nhân vật/tổ chức (VD: Roman Reigns, Cody Rhodes, WWE...)" />
+              <button type="button" class="btn btn-outline-sm" id="add-entity-btn">+ Thêm đối tượng</button>
+            </div>
+            <div class="chip-editor-box" id="topic-entities-list">
+              <span class="muted-small">Chưa có nhân vật hoặc tổ chức nào được gắn thẻ.</span>
+            </div>
+          </div>
+
+          <!-- Nguồn dữ liệu & Tùy chọn theo dõi -->
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Nguồn dữ liệu thu thập</label>
+              <div class="checkbox-group">
+                <label class="checkbox-pill">
+                  <input type="checkbox" id="src-press" checked />
+                  <span>📰 Báo chí quốc tế &amp; trong nước</span>
+                </label>
+                <label class="checkbox-pill">
+                  <input type="checkbox" id="src-social" checked />
+                  <span>📱 Mạng xã hội &amp; diễn đàn</span>
+                </label>
+                <label class="checkbox-pill">
+                  <input type="checkbox" id="src-video" checked />
+                  <span>🎬 Video &amp; phân tích hình ảnh</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Tùy chọn theo dõi &amp; hiển thị</label>
+              <div class="checkbox-group">
+                <label class="checkbox-pill">
+                  <input type="checkbox" id="opt-notify-latest" checked />
+                  <span>🔔 Theo dõi &amp; báo tin mới nhất</span>
+                </label>
+                <label class="checkbox-pill">
+                  <input type="checkbox" id="opt-pinned" />
+                  <span>📌 Ghim lên đầu danh sách</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:12px;border-top:1px solid var(--border-color);">
+            <button type="button" class="btn btn-outline-sm" id="cancel-topic-modal-btn">Hủy bỏ</button>
+            <button type="submit" class="btn btn-ai-sm" id="save-topic-submit-btn">Lưu chuyên mục &amp; Thu thập tin ngay</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL / NGĂN ĐỌC CHI TIẾT BÀI BÁO + CHAT AI THEO NGỮ CẢNH -->
+  <div class="article-modal-backdrop hidden" id="article-reader-modal" role="dialog" aria-modal="true">
+    <div class="article-reader-shell">
+      <div class="reader-topbar">
+        <button class="btn btn-outline-sm" id="close-reader-btn">← Quay lại danh sách tin</button>
+        <div class="reader-topbar-actions">
+          <button class="btn btn-outline-sm" id="reader-save-btn">🔖 Lưu bài viết</button>
+          <a href="#" target="_blank" rel="noopener noreferrer" class="btn btn-outline-sm" id="reader-original-link">Đọc bài gốc ↗</a>
+          <button class="btn btn-ai-sm mobile-only-flex" id="toggle-mobile-article-chat">💬 Hỏi AI về bài này</button>
+        </div>
+      </div>
+
+      <div class="reader-body-grid">
+        <!-- Cột trái: Nội dung bài báo & Công cụ phân tích AI -->
+        <article class="reader-article-pane" id="reader-article-content"></article>
+
+        <!-- Cột phải: Khung Chat AI trong bài báo -->
+        <aside class="reader-ai-pane" id="reader-ai-pane">
+          <div class="reader-ai-header">
+            <div>
+              <div class="ai-badge-title">
+                <span class="ai-spark">✦</span>
+                <h4>Trợ lý AI Đọc hiểu Bài báo</h4>
+              </div>
+              <span class="muted-small">Trả lời bám sát ngữ cảnh bài viết &amp; phân tách nguồn rõ ràng</span>
+            </div>
+            <button class="icon-btn mobile-only-flex" id="close-mobile-article-chat">✕</button>
+          </div>
+
+          <!-- Các nút chức năng phân tích bài báo 1 chạm -->
+          <div class="article-ai-tools">
+            <button class="tool-chip" data-article-action="summary">📝 Tóm tắt bài báo</button>
+            <button class="tool-chip" data-article-action="translate">🇻🇳 Dịch sang tiếng Việt</button>
+            <button class="tool-chip" data-article-action="causes">🔍 Nguyên nhân &amp; Bối cảnh</button>
+            <button class="tool-chip" data-article-action="vietnam">🌏 Tác động đến Việt Nam</button>
+            <button class="tool-chip" data-article-action="perspectives">⚖️ Góc nhìn trái chiều</button>
+            <button class="tool-chip" data-article-action="forecast">🔮 Dự báo diễn biến</button>
+          </div>
+
+          <!-- Lịch sử hội thoại theo bài báo -->
+          <div class="article-chat-messages" id="article-chat-messages"></div>
+
+          <!-- Câu hỏi gợi ý động -->
+          <div class="article-suggested-questions" id="article-suggested-questions"></div>
+
+          <!-- Form nhập câu hỏi -->
+          <form class="article-chat-form" id="article-chat-form">
+            <input
+              type="text"
+              id="article-chat-input"
+              placeholder="Đặt câu hỏi về bài báo này..."
+              autocomplete="off"
+              required
+            />
+            <button type="submit" class="btn btn-ai-sm" id="article-chat-submit">Gửi</button>
+          </form>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <!-- THANH ĐIỀU HƯỚNG DƯỚI CÙNG CHO ĐIỆN THOẠI -->
+  <nav class="mobile-bottom-nav" aria-label="Điều hướng di động">
+    <button class="mobile-nav-btn active" data-view="trang-chu">
+      <span>🏠</span>
+      <small>Trang chủ</small>
+    </button>
+    <button class="mobile-nav-btn" data-view="quan-ly-chuyen-muc">
+      <span>🗂️</span>
+      <small>Chuyên mục</small>
+    </button>
+    <button class="mobile-nav-btn" data-view="mang-xa-hoi">
+      <span>📱</span>
+      <small>Mạng xã hội</small>
+    </button>
+    <button class="mobile-nav-btn" data-view="tro-ly-ai">
+      <span>🤖</span>
+      <small>Trợ lý AI</small>
+    </button>
+    <button class="mobile-nav-btn" data-view="tin-da-luu">
+      <span>🔖</span>
+      <small>Đã lưu</small>
+    </button>
+  </nav>
+
+  <!-- HỘP THOẠI THÔNG BÁO NHANH (TOAST) -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
