@@ -1,7 +1,6 @@
 /**
  * Vercel Serverless Function: /api/ai
  * Tự động đọc GEMINI_API_KEY hoặc OPENAI_API_KEY từ Environment Variables trên Vercel.
- * Giúp bảo mật tuyệt đối khóa API, không để lộ ra trình duyệt người dùng.
  */
 
 export default async function handler(req, res) {
@@ -18,7 +17,6 @@ export default async function handler(req, res) {
   const openaiKey = (process.env.OPENAI_API_KEY || "").trim();
   const openaiModel = (process.env.OPENAI_MODEL || "gpt-4o-mini").trim();
 
-  // Endpoint GET /api/ai để frontend kiểm tra xem Vercel đã gắn biến môi trường chưa
   if (req.method === "GET") {
     const configured = Boolean(geminiKey || openaiKey);
     const provider = geminiKey ? "Vercel Gemini" : openaiKey ? "Vercel OpenAI" : null;
@@ -37,7 +35,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { systemPrompt = "", userPrompt = "", history = [] } = req.body || {};
+    const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
+    const { systemPrompt = "", userPrompt = "", history = [] } = body;
 
     if (geminiKey) {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(geminiKey)}`;
@@ -64,7 +63,7 @@ export default async function handler(req, res) {
           contents,
           generationConfig: {
             temperature: 0.35,
-            maxOutputTokens: 1600
+            maxOutputTokens: 2048
           }
         })
       });
@@ -72,13 +71,13 @@ export default async function handler(req, res) {
       if (!response.ok) {
         const errText = await response.text();
         return res.status(response.status).json({
-          error: `Lỗi Gemini API (${response.status}): ${errText.slice(0, 200)}`
+          error: `Lỗi Gemini API (${response.status}): ${errText.slice(0, 220)}`
         });
       }
 
       const data = await response.json();
-      const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("
-") || "";
+      const parts = data?.candidates?.[0]?.content?.parts || [];
+      const text = parts.map((p) => p.text || "").join("\n");
       return res.status(200).json({ text });
     }
 
@@ -108,7 +107,7 @@ export default async function handler(req, res) {
       if (!response.ok) {
         const errText = await response.text();
         return res.status(response.status).json({
-          error: `Lỗi OpenAI API (${response.status}): ${errText.slice(0, 200)}`
+          error: `Lỗi OpenAI API (${response.status}): ${errText.slice(0, 220)}`
         });
       }
 
