@@ -12,7 +12,7 @@ module.exports = async function handler(req, res) {
   }
 
   const geminiKey = (process.env.GEMINI_API_KEY || "").trim();
-  const geminiModel = (process.env.GEMINI_MODEL || "gemini-2.5-flash").trim();
+  const geminiModel = (process.env.GEMINI_MODEL || "gemini-3.8-flash").trim();
   const openaiKey = (process.env.OPENAI_API_KEY || "").trim();
   const openaiModel = (process.env.OPENAI_MODEL || "gpt-4o-mini").trim();
 
