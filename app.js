@@ -88,7 +88,7 @@
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS) || "{}");
       return {
         geminiKey: (saved.geminiKey || base.GEMINI_API_KEY || "").trim(),
-        geminiModel: saved.geminiModel || base.GEMINI_MODEL || "gemini-2.5-flash",
+        geminiModel: saved.geminiModel || base.GEMINI_MODEL || "gemini-3.8-flash",
         openaiKey: (saved.openaiKey || base.OPENAI_API_KEY || "").trim(),
         openaiModel: saved.openaiModel || base.OPENAI_MODEL || "gpt-4o-mini",
         proxyUrl: (saved.proxyUrl !== undefined && saved.proxyUrl !== "" ? saved.proxyUrl : base.BACKEND_PROXY_URL || "").trim()
@@ -96,7 +96,7 @@
     } catch (e) {
       return {
         geminiKey: base.GEMINI_API_KEY || "",
-        geminiModel: base.GEMINI_MODEL || "gemini-2.5-flash",
+        geminiModel: base.GEMINI_MODEL || "gemini-3.8-flash",
         openaiKey: base.OPENAI_API_KEY || "",
         openaiModel: base.OPENAI_MODEL || "gpt-4o-mini",
         proxyUrl: base.BACKEND_PROXY_URL || ""
@@ -2004,7 +2004,7 @@ QUY TẮC TRẢ LỜI BẮT BUỘC (TIẾNG VIỆT):
           <div class="form-group">
             <label for="cfg-gemini-model">Mô hình Gemini</label>
             <select id="cfg-gemini-model">
-              <option value="gemini-2.5-flash" ${s.geminiModel === "gemini-2.5-flash" ? "selected" : ""}>gemini-2.5-flash (Nhanh, tối ưu phân tích tin tức)</option>
+              <option value="gemini-3.8-flash" ${s.geminiModel === "gemini-3.8-flash" ? "selected" : ""}>gemini-3.8-flash (Nhanh, tối ưu phân tích tin tức)</option>
               <option value="gemini-2.5-pro" ${s.geminiModel === "gemini-2.5-pro" ? "selected" : ""}>gemini-2.5-pro (Phân tích chuyên sâu phức tạp)</option>
             </select>
           </div>
