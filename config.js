@@ -8,7 +8,7 @@ const isWebServer = typeof window !== "undefined" && window.location.protocol.st
 window.GLOBAL_NEWS_CONFIG = {
   // Để trống khi đẩy lên GitHub để bảo mật. Khi deploy Vercel, hệ thống tự gọi /api/ai
   GEMINI_API_KEY: "",
-  GEMINI_MODEL: "gemini-2.5-flash",
+  GEMINI_MODEL: "gemini-3.8-flash",
 
   OPENAI_API_KEY: "",
   OPENAI_MODEL: "gpt-4o-mini",
