@@ -1,9 +1,8 @@
 /**
- * Vercel Serverless Function: /api/ai
- * Tự động đọc GEMINI_API_KEY hoặc OPENAI_API_KEY từ Environment Variables trên Vercel.
+ * Vercel Serverless Function: /api/ai (Chuẩn CommonJS tương thích mặc định 100% trên Vercel)
  */
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -30,7 +29,7 @@ export default async function handler(req, res) {
   if (!geminiKey && !openaiKey) {
     return res.status(503).json({
       error: "CHUA_CAU_HINH_VERCEL_ENV",
-      message: "Máy chủ Vercel chưa được thiết lập biến môi trường GEMINI_API_KEY hoặc OPENAI_API_KEY."
+      message: "Máy chủ Vercel chưa có biến môi trường GEMINI_API_KEY hoặc OPENAI_API_KEY."
     });
   }
 
@@ -71,7 +70,7 @@ export default async function handler(req, res) {
       if (!response.ok) {
         const errText = await response.text();
         return res.status(response.status).json({
-          error: `Lỗi Gemini API (${response.status}): ${errText.slice(0, 220)}`
+          error: `Lỗi từ Google Gemini (${response.status}): ${errText.slice(0, 250)}`
         });
       }
 
@@ -107,7 +106,7 @@ export default async function handler(req, res) {
       if (!response.ok) {
         const errText = await response.text();
         return res.status(response.status).json({
-          error: `Lỗi OpenAI API (${response.status}): ${errText.slice(0, 220)}`
+          error: `Lỗi từ OpenAI (${response.status}): ${errText.slice(0, 250)}`
         });
       }
 
@@ -117,7 +116,7 @@ export default async function handler(req, res) {
     }
   } catch (err) {
     return res.status(500).json({
-      error: "Lỗi xử lý tại Vercel Function: " + (err.message || "Không xác định")
+      error: "Lỗi thực thi tại Vercel Function: " + (err.message || "Không xác định")
     });
   }
-}
+};
