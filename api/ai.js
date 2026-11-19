@@ -1,9 +1,7 @@
 /**
  * Vercel Serverless Function: /api/ai
  * Tự động đọc GEMINI_API_KEY hoặc OPENAI_API_KEY từ Environment Variables trên Vercel.
- * Hỗ trợ:
- * 1. Chat & Phân tích tin tức chuyên sâu (POST /api/ai)
- * 2. Dịch hàng loạt tiêu đề & tóm tắt báo quốc tế sang tiếng Việt (action: "translate_batch")
+ * Hỗ trợ dịch hàng loạt tiêu đề & sapo báo quốc tế + mạng xã hội sang tiếng Việt.
  */
 
 module.exports = async function handler(req, res) {
@@ -54,7 +52,7 @@ module.exports = async function handler(req, res) {
       });
 
       const generationConfig = {
-        temperature: 0.25,
+        temperature: 0.2,
         maxOutputTokens: 4096
       };
       if (jsonMode) {
@@ -102,7 +100,7 @@ module.exports = async function handler(req, res) {
         body: JSON.stringify({
           model: openaiModel,
           messages,
-          temperature: 0.25
+          temperature: 0.2
         })
       });
 
@@ -121,13 +119,21 @@ module.exports = async function handler(req, res) {
 
     if (body.action === "translate_batch" && Array.isArray(body.items)) {
       const sys = `Bạn là Biên tập viên Dịch thuật Báo chí Quốc tế chuyên nghiệp.
-Hãy dịch danh sách các bài báo nước ngoài (tiêu đề và mô tả) sang TIẾNG VIỆT tự nhiên, chuẩn văn phong báo chí chính thống.
-Giữ nguyên tên riêng quốc tế, tên tổ chức, mã chứng khoán và thuật ngữ chuyên ngành phổ biến.
-Trả về một mảng JSON có cấu trúc chính xác: [{"id": "...", "titleVi": "...", "descriptionVi": "..."}]`;
+Hãy dịch toàn bộ tiêu đề (title) và phần sapo/mô tả (description) của các bài báo nước ngoài sang TIẾNG VIỆT tự nhiên, súc tích, chuẩn văn phong báo chí.
+Giữ nguyên tên riêng quốc tế, tên tổ chức, mã chứng khoán.
+Trả về một đối tượng JSON có dạng:
+{"translations": [{"id": "giữ nguyên id", "titleVi": "tiêu đề tiếng Việt", "descriptionVi": "sapo tiếng Việt"}]}`;
 
       const raw = await runLlm(sys, JSON.stringify(body.items), [], true);
       const cleaned = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
-      const translations = JSON.parse(cleaned);
+      const parsed = JSON.parse(cleaned);
+      const translations = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray(parsed.translations)
+        ? parsed.translations
+        : Array.isArray(parsed.items)
+        ? parsed.items
+        : [];
       return res.status(200).json({ translations });
     }
 

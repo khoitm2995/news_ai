@@ -467,76 +467,105 @@
     autoTranslateForeignArticles(state.articles);
   }
 
-  // Bộ nhớ đệm bản dịch tiếng Việt theo ID bài báo
-  const TRANSLATION_CACHE_KEY = "global_news_ai_vi_translations_v1";
+  // Bộ nhớ đệm bản dịch tiếng Việt theo ID bài báo & bài mạng xã hội
+  const TRANSLATION_CACHE_KEY = "global_news_ai_vi_translations_v2";
   let translationMemory = {};
+  let isTranslatingNow = false;
   try {
     translationMemory = JSON.parse(localStorage.getItem(TRANSLATION_CACHE_KEY) || "{}");
   } catch (e) {
     translationMemory = {};
   }
 
-  function applyCachedTranslations(articlesList) {
-    articlesList.forEach((art) => {
-      const cached = translationMemory[art.id];
+  function applyCachedTranslations(itemsList) {
+    if (!Array.isArray(itemsList)) return;
+    itemsList.forEach((item) => {
+      const cached = translationMemory[item.id];
       if (cached) {
-        if (!art.originalTitle) art.originalTitle = art.title;
-        if (!art.originalDescription) art.originalDescription = art.description;
-        art.title = cached.titleVi || art.title;
-        art.description = cached.descriptionVi || art.description;
-        art.fullContent = cached.descriptionVi || art.fullContent;
-        art.isTranslated = true;
+        if (!item.originalTitle) item.originalTitle = item.title;
+        if (!item.originalDescription && item.description) item.originalDescription = item.description;
+        if (!item.originalSummary && item.summary) item.originalSummary = item.summary;
+
+        if (cached.titleVi) item.title = cached.titleVi;
+        if (cached.descriptionVi) {
+          if (typeof item.description === "string") item.description = cached.descriptionVi;
+          if (typeof item.fullContent === "string") item.fullContent = cached.descriptionVi;
+          if (typeof item.summary === "string") item.summary = cached.descriptionVi;
+        }
+        item.isTranslated = true;
       }
     });
   }
 
-  function isLikelyEnglish(text) {
+  function needsVietnameseTranslation(text) {
     if (!text) return false;
+    // Kiểm tra các dấu thanh đặc trưng tiếng Việt; nếu không có thì là tiếng nước ngoài
     return !/[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(text);
   }
 
-  async function autoTranslateForeignArticles(articlesList) {
-    if (!Array.isArray(articlesList) || articlesList.length === 0) return;
+  async function autoTranslateForeignArticles(itemsList, showFeedback = false) {
+    if (!Array.isArray(itemsList) || itemsList.length === 0) return;
 
-    applyCachedTranslations(articlesList);
+    applyCachedTranslations(itemsList);
     updateHeaderAndSidebarStats();
     renderCurrentView();
 
-    const untranslated = articlesList
-      .filter((art) => !translationMemory[art.id] && isLikelyEnglish(art.title))
-      .slice(0, 30);
+    if (isTranslatingNow) return;
 
-    if (untranslated.length === 0) return;
+    const untranslated = itemsList
+      .filter((item) => !translationMemory[item.id] && needsVietnameseTranslation(item.title))
+      .slice(0, 40);
+
+    if (untranslated.length === 0) {
+      if (showFeedback) showToast("Tất cả bài viết hiện tại đã được dịch sang tiếng Việt!");
+      return;
+    }
 
     const settings = getSettings();
-    for (let i = 0; i < untranslated.length; i += 10) {
-      const batch = untranslated.slice(i, i + 10).map((a) => ({
-        id: a.id,
-        title: a.originalTitle || a.title,
-        description: (a.originalDescription || a.description || "").slice(0, 350)
-      }));
+    const canUseProxy = Boolean(settings.proxyUrl);
+    const canUseDirectKey = Boolean(settings.geminiKey || settings.openaiKey);
 
-      try {
+    if (!canUseProxy && !canUseDirectKey) {
+      if (showFeedback) showToast("Chưa cấu hình API AI để dịch tự động.");
+      return;
+    }
+
+    isTranslatingNow = true;
+    const translateBtn = document.getElementById("translate-all-btn");
+    if (translateBtn) translateBtn.textContent = "⏳ Đang dịch...";
+    if (showFeedback) showToast(`Đang dịch ${untranslated.length} bản tin quốc tế sang tiếng Việt...`);
+
+    try {
+      for (let i = 0; i < untranslated.length; i += 8) {
+        const batch = untranslated.slice(i, i + 8).map((a) => ({
+          id: a.id,
+          title: a.originalTitle || a.title,
+          description: (a.originalDescription || a.description || a.originalSummary || a.summary || "").slice(0, 360)
+        }));
+
         let translatedItems = [];
 
-        if (settings.proxyUrl && !settings.geminiKey && !settings.openaiKey) {
+        if (canUseProxy && !canUseDirectKey) {
           const res = await fetch(settings.proxyUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action: "translate_batch", items: batch })
           });
-          if (res.ok) {
-            const data = await res.json();
-            translatedItems = data.translations || [];
+          if (!res.ok) {
+            const errJson = await res.json().catch(() => ({}));
+            throw new Error(errJson.error || `HTTP ${res.status}`);
           }
-        } else if (settings.geminiKey || settings.openaiKey) {
+          const data = await res.json();
+          translatedItems = data.translations || [];
+        } else if (canUseDirectKey) {
           const raw = await callAiAssistant({
             systemPrompt:
-              'Bạn là Biên tập viên Báo chí Quốc tế. Hãy dịch tiêu đề và mô tả các bài báo sau sang TIẾNG VIỆT chuẩn xác, tự nhiên. Trả về DUY NHẤT mảng JSON: [{"id":"...","titleVi":"...","descriptionVi":"..."}]',
+              'Bạn là Biên tập viên Báo chí Quốc tế. Hãy dịch tiêu đề và phần sapo/mô tả các bài báo sau sang TIẾNG VIỆT tự nhiên, chuẩn xác. Trả về JSON: {"translations":[{"id":"...","titleVi":"...","descriptionVi":"..."}]}',
             userPrompt: JSON.stringify(batch)
           });
           const cleaned = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
-          translatedItems = JSON.parse(cleaned);
+          const parsed = JSON.parse(cleaned);
+          translatedItems = Array.isArray(parsed) ? parsed : (parsed.translations || []);
         }
 
         if (Array.isArray(translatedItems) && translatedItems.length > 0) {
@@ -549,14 +578,19 @@
             }
           });
           localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(translationMemory));
-          applyCachedTranslations(articlesList);
+          applyCachedTranslations(state.articles);
+          applyCachedTranslations(state.socialPosts);
           state.clusters = clusterArticles(state.articles);
           updateHeaderAndSidebarStats();
           renderCurrentView();
         }
-      } catch (err) {
-        break;
       }
+      if (showFeedback) showToast("Đã hoàn tất dịch tiêu đề và sapo sang tiếng Việt!");
+    } catch (err) {
+      if (showFeedback) showToast("Lỗi dịch tự động: " + err.message);
+    } finally {
+      isTranslatingNow = false;
+      if (translateBtn) translateBtn.textContent = "🌐 Dịch tiếng Việt";
     }
   }
 
@@ -639,6 +673,7 @@
 
     updateHeaderAndSidebarStats();
     renderCurrentView();
+    autoTranslateForeignArticles(state.socialPosts, false);
   }
 
   /* ==========================================================================
@@ -2692,6 +2727,10 @@ ${latestContext}`;
       renderCurrentView();
     });
 
+    document.getElementById("translate-all-btn").addEventListener("click", () => {
+      autoTranslateForeignArticles([...state.articles, ...state.socialPosts], true);
+    });
+
     document.getElementById("refresh-feeds-btn").addEventListener("click", () => {
       showToast("Đang đồng bộ tin tức mới nhất từ các hãng thông tấn...");
       loadAllNews(true);
@@ -3056,7 +3095,7 @@ ${latestContext}`;
   /* ==========================================================================
      11. KHỞI CHẠY ỨNG DỤNG
      ========================================================================== */
-  function bootstrap() {
+  async function bootstrap() {
     initTheme();
     loadPersistedUserData();
     updateConnectionIndicators();
@@ -3064,7 +3103,7 @@ ${latestContext}`;
     renderRightMyTopicsSummary();
     bindEvents();
     renderCurrentView();
-    detectVercelServerEnv();
+    await detectVercelServerEnv();
     loadAllNews(false);
     loadSocialTrends(false);
   }
