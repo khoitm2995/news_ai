@@ -1,28 +1,23 @@
 ================================================================================
-GLOBAL NEWS AI - HƯỚNG DẪN ĐẨY LÊN GITHUB & DEPLOY VERCEL
-Ứng dụng Đọc báo Quốc tế, Xu hướng Mạng xã hội & Chuyên mục Cá nhân AI
+GLOBAL NEWS AI - PHIÊN BẢN HOÀN CHỈNH CHO GITHUB & VERCEL (GEMINI-3.8-FLASH)
+Ứng dụng Đọc báo Quốc tế Tự động Dịch Tiếng Việt, Xu hướng MXH & Chuyên mục AI
 ================================================================================
 
-1. CẤU TRÚC THƯ MỤC DỰ ÁN (SẴN SÀNG CHO GITHUB + VERCEL)
-- index.html  : Giao diện chính của tòa soạn tin tức (100% Tiếng Việt).
-- style.css   : Hệ thống giao diện báo chí hiện đại, hỗ trợ Chế độ Sáng/Tối & Di động.
-- app.js      : Toàn bộ logic thu thập tin RSS, Chuyên mục cá nhân hóa (My Topics),
-                nhóm sự kiện, lọc xu hướng và tự động nhận diện Vercel Backend.
-- config.js   : Tệp cấu hình danh sách nguồn báo chí & tự động trỏ về /api/ai.
-- api/ai.js   : Vercel Serverless Function tự động đọc biến môi trường API Key
-                trên Vercel để bảo mật khóa, không để lộ trên GitHub.
-- README.txt  : Tài liệu hướng dẫn cài đặt và triển khai.
+1. DANH SÁCH TỆP TRONG GÓI (ĐẶT Ở THƯ MỤC GỐC REPOSITORY GITHUB)
+- index.html  : Giao diện tòa soạn tin tức 100% Tiếng Việt.
+- style.css   : Giao diện báo chí hiện đại, Sáng/Tối & Responsive di động.
+- app.js      : Logic thu thập RSS, tự động dịch bài báo nước ngoài sang tiếng Việt,
+                Chuyên mục cá nhân hóa (My Topics) & Trợ lý AI.
+- config.js   : Cấu hình nguồn tin & tự động trỏ /api/ai (mặc định gemini-3.8-flash).
+- api/ai.js   : Vercel Serverless Function (chuẩn CommonJS) tự động đọc biến môi
+                trường GEMINI_API_KEY trên Vercel và hỗ trợ dịch hàng loạt.
+- README.txt  : Tài liệu hướng dẫn.
 
-2. HƯỚNG DẪN ĐẨY LÊN GITHUB VÀ GẮN KEY API TRÊN VERCEL
-- Bước 1: Giải nén tệp zip này và đẩy toàn bộ các tệp bên trong lên một
-          Repository (kho lưu trữ) trên GitHub.
-- Bước 2: Đăng nhập Vercel (https://vercel.com), chọn "Add New Project" ->
-          Import kho GitHub vừa tạo -> chọn Framework Preset là "Other" -> Deploy.
-- Bước 3: Vào tab "Settings" -> "Environment Variables" của dự án trên Vercel:
-          + Key  : GEMINI_API_KEY
-          + Value: Dán khóa Google Gemini API của bạn (bắt đầu bằng AIzaSy...)
-          (Tùy chọn: có thể thêm GEMINI_MODEL = gemini-2.5-flash hoặc OPENAI_API_KEY)
-- Bước 4: Vào tab "Deployments" -> nhấn "Redeploy" để Vercel áp dụng khóa API.
-          Khi mở trang web, góc trên bên phải sẽ tự động hiển thị trạng thái xanh:
-          "AI: Đã kết nối (Vercel Gemini)".
+2. CÁCH CẬP NHẬT LÊN GITHUB & VERCEL
+- Bước 1: Giải nén toàn bộ tệp này và tải đè (Replace) lên thư mục gốc kho GitHub.
+- Bước 2: Trên Vercel -> Settings -> Environment Variables:
+          + Đảm bảo đã có biến GEMINI_API_KEY = <khóa API của bạn>.
+          + Nếu trước đó bạn có tạo biến GEMINI_MODEL = gemini-2.5-flash thì hãy xóa
+            hoặc đổi thành gemini-3.8-flash.
+- Bước 3: Vercel sẽ tự động triển khai lại trong ~15 giây.
 ================================================================================

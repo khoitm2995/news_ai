@@ -1,5 +1,9 @@
 /**
- * Vercel Serverless Function: /api/ai (Chuẩn CommonJS tương thích mặc định 100% trên Vercel)
+ * Vercel Serverless Function: /api/ai
+ * Tự động đọc GEMINI_API_KEY hoặc OPENAI_API_KEY từ Environment Variables trên Vercel.
+ * Hỗ trợ:
+ * 1. Chat & Phân tích tin tức chuyên sâu (POST /api/ai)
+ * 2. Dịch hàng loạt tiêu đề & tóm tắt báo quốc tế sang tiếng Việt (action: "translate_batch")
  */
 
 module.exports = async function handler(req, res) {
@@ -33,10 +37,7 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  try {
-    const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
-    const { systemPrompt = "", userPrompt = "", history = [] } = body;
-
+  async function runLlm(systemPrompt, userPrompt, history = [], jsonMode = false) {
     if (geminiKey) {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(geminiKey)}`;
 
@@ -52,6 +53,14 @@ module.exports = async function handler(req, res) {
         parts: [{ text: String(userPrompt) }]
       });
 
+      const generationConfig = {
+        temperature: 0.25,
+        maxOutputTokens: 4096
+      };
+      if (jsonMode) {
+        generationConfig.responseMimeType = "application/json";
+      }
+
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -60,24 +69,18 @@ module.exports = async function handler(req, res) {
             parts: [{ text: String(systemPrompt) }]
           },
           contents,
-          generationConfig: {
-            temperature: 0.35,
-            maxOutputTokens: 2048
-          }
+          generationConfig
         })
       });
 
       if (!response.ok) {
         const errText = await response.text();
-        return res.status(response.status).json({
-          error: `Lỗi từ Google Gemini (${response.status}): ${errText.slice(0, 250)}`
-        });
+        throw new Error(`Lỗi từ Google Gemini (${response.status}): ${errText.slice(0, 220)}`);
       }
 
       const data = await response.json();
       const parts = data?.candidates?.[0]?.content?.parts || [];
-      const text = parts.map((p) => p.text || "").join("\n");
-      return res.status(200).json({ text });
+      return parts.map((p) => p.text || "").join("\n");
     }
 
     if (openaiKey) {
@@ -99,24 +102,41 @@ module.exports = async function handler(req, res) {
         body: JSON.stringify({
           model: openaiModel,
           messages,
-          temperature: 0.35
+          temperature: 0.25
         })
       });
 
       if (!response.ok) {
         const errText = await response.text();
-        return res.status(response.status).json({
-          error: `Lỗi từ OpenAI (${response.status}): ${errText.slice(0, 250)}`
-        });
+        throw new Error(`Lỗi từ OpenAI (${response.status}): ${errText.slice(0, 220)}`);
       }
 
       const data = await response.json();
-      const text = data?.choices?.[0]?.message?.content || "";
-      return res.status(200).json({ text });
+      return data?.choices?.[0]?.message?.content || "";
     }
+  }
+
+  try {
+    const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
+
+    if (body.action === "translate_batch" && Array.isArray(body.items)) {
+      const sys = `Bạn là Biên tập viên Dịch thuật Báo chí Quốc tế chuyên nghiệp.
+Hãy dịch danh sách các bài báo nước ngoài (tiêu đề và mô tả) sang TIẾNG VIỆT tự nhiên, chuẩn văn phong báo chí chính thống.
+Giữ nguyên tên riêng quốc tế, tên tổ chức, mã chứng khoán và thuật ngữ chuyên ngành phổ biến.
+Trả về một mảng JSON có cấu trúc chính xác: [{"id": "...", "titleVi": "...", "descriptionVi": "..."}]`;
+
+      const raw = await runLlm(sys, JSON.stringify(body.items), [], true);
+      const cleaned = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
+      const translations = JSON.parse(cleaned);
+      return res.status(200).json({ translations });
+    }
+
+    const { systemPrompt = "", userPrompt = "", history = [] } = body;
+    const text = await runLlm(systemPrompt, userPrompt, history, false);
+    return res.status(200).json({ text });
   } catch (err) {
     return res.status(500).json({
-      error: "Lỗi thực thi tại Vercel Function: " + (err.message || "Không xác định")
+      error: err.message || "Lỗi xử lý dịch thuật / AI trên Vercel"
     });
   }
 };

@@ -135,6 +135,9 @@
       }
       updateConnectionIndicators();
       if (state.currentView === "cau-hinh-api") renderCurrentView();
+      if (vercelEnvStatus.configured && state.articles.length > 0) {
+        autoTranslateForeignArticles(state.articles);
+      }
     }
   }
 
@@ -410,6 +413,7 @@
           state.lastUpdated = new Date(cached.timestamp);
           updateHeaderAndSidebarStats();
           renderCurrentView();
+          autoTranslateForeignArticles(state.articles);
           return;
         }
       } catch (e) {}
@@ -460,6 +464,100 @@
 
     updateHeaderAndSidebarStats();
     renderCurrentView();
+    autoTranslateForeignArticles(state.articles);
+  }
+
+  // Bộ nhớ đệm bản dịch tiếng Việt theo ID bài báo
+  const TRANSLATION_CACHE_KEY = "global_news_ai_vi_translations_v1";
+  let translationMemory = {};
+  try {
+    translationMemory = JSON.parse(localStorage.getItem(TRANSLATION_CACHE_KEY) || "{}");
+  } catch (e) {
+    translationMemory = {};
+  }
+
+  function applyCachedTranslations(articlesList) {
+    articlesList.forEach((art) => {
+      const cached = translationMemory[art.id];
+      if (cached) {
+        if (!art.originalTitle) art.originalTitle = art.title;
+        if (!art.originalDescription) art.originalDescription = art.description;
+        art.title = cached.titleVi || art.title;
+        art.description = cached.descriptionVi || art.description;
+        art.fullContent = cached.descriptionVi || art.fullContent;
+        art.isTranslated = true;
+      }
+    });
+  }
+
+  function isLikelyEnglish(text) {
+    if (!text) return false;
+    return !/[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(text);
+  }
+
+  async function autoTranslateForeignArticles(articlesList) {
+    if (!Array.isArray(articlesList) || articlesList.length === 0) return;
+
+    applyCachedTranslations(articlesList);
+    updateHeaderAndSidebarStats();
+    renderCurrentView();
+
+    const untranslated = articlesList
+      .filter((art) => !translationMemory[art.id] && isLikelyEnglish(art.title))
+      .slice(0, 30);
+
+    if (untranslated.length === 0) return;
+
+    const settings = getSettings();
+    for (let i = 0; i < untranslated.length; i += 10) {
+      const batch = untranslated.slice(i, i + 10).map((a) => ({
+        id: a.id,
+        title: a.originalTitle || a.title,
+        description: (a.originalDescription || a.description || "").slice(0, 350)
+      }));
+
+      try {
+        let translatedItems = [];
+
+        if (settings.proxyUrl && !settings.geminiKey && !settings.openaiKey) {
+          const res = await fetch(settings.proxyUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "translate_batch", items: batch })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            translatedItems = data.translations || [];
+          }
+        } else if (settings.geminiKey || settings.openaiKey) {
+          const raw = await callAiAssistant({
+            systemPrompt:
+              'Bạn là Biên tập viên Báo chí Quốc tế. Hãy dịch tiêu đề và mô tả các bài báo sau sang TIẾNG VIỆT chuẩn xác, tự nhiên. Trả về DUY NHẤT mảng JSON: [{"id":"...","titleVi":"...","descriptionVi":"..."}]',
+            userPrompt: JSON.stringify(batch)
+          });
+          const cleaned = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
+          translatedItems = JSON.parse(cleaned);
+        }
+
+        if (Array.isArray(translatedItems) && translatedItems.length > 0) {
+          translatedItems.forEach((tr) => {
+            if (tr && tr.id && tr.titleVi) {
+              translationMemory[tr.id] = {
+                titleVi: tr.titleVi,
+                descriptionVi: tr.descriptionVi || ""
+              };
+            }
+          });
+          localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(translationMemory));
+          applyCachedTranslations(articlesList);
+          state.clusters = clusterArticles(state.articles);
+          updateHeaderAndSidebarStats();
+          renderCurrentView();
+        }
+      } catch (err) {
+        break;
+      }
+    }
   }
 
   async function loadSocialTrends(forceRefresh = false) {
@@ -860,6 +958,7 @@
     state.isFetchingTopicId = null;
     renderSidebarMyTopics();
     renderCurrentView();
+    autoTranslateForeignArticles(uniqueTopicArticles);
     return bundle;
   }
 
@@ -2123,6 +2222,17 @@ QUY TẮC TRẢ LỜI BẮT BUỘC (TIẾNG VIỆT):
       <div class="reader-text">
         <p>${escapeHtml(article.fullContent || article.description)}</p>
       </div>
+      ${
+        article.isTranslated && article.originalTitle
+          ? `<details style="margin-top:14px;padding:10px 14px;border-radius:8px;background:var(--gray-subtle);border:1px solid var(--border-color);font-size:0.84rem;">
+              <summary style="cursor:pointer;font-weight:700;color:var(--blue-ai);">🌐 Xem nguyên văn tiếng gốc từ ${escapeHtml(article.source)}</summary>
+              <div style="margin-top:8px;color:var(--text-secondary);">
+                <p style="font-weight:700;margin-bottom:6px;">${escapeHtml(article.originalTitle)}</p>
+                <p>${escapeHtml(article.originalDescription || "")}</p>
+              </div>
+            </details>`
+          : ""
+      }
       <div class="reader-disclaimer">
         <strong>Lưu ý bản quyền &amp; nguồn dữ liệu:</strong> Nội dung trích dẫn trên được đồng bộ trực tiếp từ luồng RSS chính thức của <strong>${escapeHtml(article.source)}</strong>. Nhấn <a href="${escapeHtml(article.link)}" target="_blank" rel="noopener noreferrer" style="color:var(--blue-ai);font-weight:700;">Đọc bài gốc tại ${escapeHtml(article.source)} ↗</a> để xem toàn văn trên trang chủ của hãng tin, hoặc sử dụng <strong>Trợ lý AI Đọc hiểu</strong> ở khung bên cạnh để dịch, tóm tắt và phân tích sâu sự kiện này.
       </div>
