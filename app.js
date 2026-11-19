@@ -485,12 +485,13 @@
         if (!item.originalTitle) item.originalTitle = item.title;
         if (!item.originalDescription && item.description) item.originalDescription = item.description;
         if (!item.originalSummary && item.summary) item.originalSummary = item.summary;
+        if (!item.originalFullContent && item.fullContent) item.originalFullContent = item.fullContent;
 
+        // Chỉ cập nhật Tiêu đề và phần Sapo hiển thị trên thẻ tin
         if (cached.titleVi) item.title = cached.titleVi;
-        if (cached.descriptionVi) {
-          if (typeof item.description === "string") item.description = cached.descriptionVi;
-          if (typeof item.fullContent === "string") item.fullContent = cached.descriptionVi;
-          if (typeof item.summary === "string") item.summary = cached.descriptionVi;
+        if (cached.sapoVi) {
+          if (typeof item.description === "string") item.description = cached.sapoVi;
+          if (typeof item.summary === "string") item.summary = cached.sapoVi;
         }
         item.isTranslated = true;
       }
@@ -536,11 +537,11 @@
     if (showFeedback) showToast(`Đang dịch ${untranslated.length} bản tin quốc tế sang tiếng Việt...`);
 
     try {
-      for (let i = 0; i < untranslated.length; i += 8) {
-        const batch = untranslated.slice(i, i + 8).map((a) => ({
+      for (let i = 0; i < untranslated.length; i += 10) {
+        const batch = untranslated.slice(i, i + 10).map((a) => ({
           id: a.id,
           title: a.originalTitle || a.title,
-          description: (a.originalDescription || a.description || a.originalSummary || a.summary || "").slice(0, 360)
+          sapo: (a.originalDescription || a.description || a.originalSummary || a.summary || "").slice(0, 220)
         }));
 
         let translatedItems = [];
@@ -560,7 +561,7 @@
         } else if (canUseDirectKey) {
           const raw = await callAiAssistant({
             systemPrompt:
-              'Bạn là Biên tập viên Báo chí Quốc tế. Hãy dịch tiêu đề và phần sapo/mô tả các bài báo sau sang TIẾNG VIỆT tự nhiên, chuẩn xác. Trả về JSON: {"translations":[{"id":"...","titleVi":"...","descriptionVi":"..."}]}',
+              'Bạn là Biên tập viên Báo chí Quốc tế. Chỉ dịch nhanh TIÊU ĐỀ (title) và SAPO ngắn (sapo) của từng bài sang TIẾNG VIỆT tự nhiên, chuẩn báo chí. Trả về JSON: {"translations":[{"id":"...","titleVi":"...","sapoVi":"..."}]}',
             userPrompt: JSON.stringify(batch)
           });
           const cleaned = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
@@ -573,7 +574,7 @@
             if (tr && tr.id && tr.titleVi) {
               translationMemory[tr.id] = {
                 titleVi: tr.titleVi,
-                descriptionVi: tr.descriptionVi || ""
+                sapoVi: tr.sapoVi || tr.descriptionVi || ""
               };
             }
           });
@@ -2254,18 +2255,21 @@ QUY TẮC TRẢ LỜI BẮT BUỘC (TIẾNG VIỆT):
         <span>Thời gian xuất bản: ${new Date(article.pubDate).toLocaleString("vi-VN")}</span>
       </div>
       <img src="${escapeHtml(article.image)}" alt="${escapeHtml(article.title)}" class="reader-hero-img" onerror="this.src='${buildFallbackImage(article.source, article.category)}'" />
+      ${
+        article.isTranslated && article.description
+          ? `<div style="padding:12px 16px;margin-bottom:16px;border-left:3px solid var(--blue-ai);background:var(--blue-bg);border-radius:6px;font-weight:600;font-size:0.95rem;">
+              ${escapeHtml(article.description)}
+            </div>`
+          : ""
+      }
       <div class="reader-text">
-        <p>${escapeHtml(article.fullContent || article.description)}</p>
+        <p>${escapeHtml(article.originalFullContent || article.fullContent || article.originalDescription || article.description)}</p>
       </div>
       ${
         article.isTranslated && article.originalTitle
-          ? `<details style="margin-top:14px;padding:10px 14px;border-radius:8px;background:var(--gray-subtle);border:1px solid var(--border-color);font-size:0.84rem;">
-              <summary style="cursor:pointer;font-weight:700;color:var(--blue-ai);">🌐 Xem nguyên văn tiếng gốc từ ${escapeHtml(article.source)}</summary>
-              <div style="margin-top:8px;color:var(--text-secondary);">
-                <p style="font-weight:700;margin-bottom:6px;">${escapeHtml(article.originalTitle)}</p>
-                <p>${escapeHtml(article.originalDescription || "")}</p>
-              </div>
-            </details>`
+          ? `<div style="margin-top:12px;padding:10px 14px;border-radius:8px;background:var(--gray-subtle);border:1px solid var(--border-color);font-size:0.82rem;color:var(--text-secondary);">
+              <strong>Tiêu đề gốc (${escapeHtml(article.source)}):</strong> ${escapeHtml(article.originalTitle)} — <em>Nhấn nút <strong>"🇻🇳 Dịch sang tiếng Việt"</strong> ở khung Trợ lý AI bên cạnh để dịch kỹ toàn bộ nội dung bài báo.</em>
+            </div>`
           : ""
       }
       <div class="reader-disclaimer">
@@ -2366,7 +2370,8 @@ QUY TẮC BẮT BUỘC:
 - Thời gian xuất bản: ${article.pubDate}
 - Chuyên mục: ${CATEGORY_LABELS[article.category] || article.category}
 - Khu vực: ${article.region}
-- Nội dung trích xuất: ${article.fullContent || article.description}
+- Tiêu đề gốc: ${article.originalTitle || article.title}
+- Nội dung trích xuất đầy đủ: ${article.originalFullContent || article.fullContent || article.originalDescription || article.description}
 - Đường dẫn gốc: ${article.link}
 
 CÂU HỎI CỦA ĐỘC GIẢ: ${questionText}`;
@@ -2770,7 +2775,7 @@ ${latestContext}`;
       btn.addEventListener("click", () => {
         const actionMap = {
           summary: "Hãy tóm tắt ngắn gọn, súc tích những ý chính quan trọng nhất của bài báo này bằng tiếng Việt.",
-          translate: "Hãy dịch toàn bộ nội dung bài báo này sang tiếng Việt tự nhiên, chuẩn văn phong báo chí.",
+          translate: "Hãy dịch kỹ và đầy đủ toàn bộ nội dung bài báo này sang tiếng Việt chuẩn văn phong báo chí quốc tế, giữ chính xác tên riêng, số liệu, phát ngôn và giải thích ngắn các thuật ngữ chuyên ngành nếu có.",
           causes: "Phân tích nguyên nhân cốt lõi và bối cảnh lịch sử dẫn đến sự kiện trong bài báo.",
           vietnam: "Sự kiện này có thể tác động như thế nào đến kinh tế, thương mại hoặc đối ngoại của Việt Nam?",
           perspectives: "Có những góc nhìn trái chiều hoặc tranh luận nào xoay quanh vấn đề này?",

@@ -119,10 +119,10 @@ module.exports = async function handler(req, res) {
 
     if (body.action === "translate_batch" && Array.isArray(body.items)) {
       const sys = `Bạn là Biên tập viên Dịch thuật Báo chí Quốc tế chuyên nghiệp.
-Hãy dịch toàn bộ tiêu đề (title) và phần sapo/mô tả (description) của các bài báo nước ngoài sang TIẾNG VIỆT tự nhiên, súc tích, chuẩn văn phong báo chí.
+Chỉ dịch nhanh và chuẩn xác TIÊU ĐỀ (title) và đoạn SAPO ngắn (sapo) của từng bản tin sang TIẾNG VIỆT tự nhiên, súc tích, đúng văn phong báo chí.
 Giữ nguyên tên riêng quốc tế, tên tổ chức, mã chứng khoán.
-Trả về một đối tượng JSON có dạng:
-{"translations": [{"id": "giữ nguyên id", "titleVi": "tiêu đề tiếng Việt", "descriptionVi": "sapo tiếng Việt"}]}`;
+Trả về đối tượng JSON đúng cấu trúc:
+{"translations": [{"id": "giữ nguyên id", "titleVi": "tiêu đề tiếng Việt", "sapoVi": "sapo tiếng Việt"}]}`;
 
       const raw = await runLlm(sys, JSON.stringify(body.items), [], true);
       const cleaned = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
