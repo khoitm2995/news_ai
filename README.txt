@@ -1,10 +1,18 @@
 ================================================================================
-GLOBAL NEWS AI - PHIÊN BẢN V6 (TỔNG HỢP TÌM KIẾM TIN TỨC ĐA NGUỒN & LỌC TRÙNG)
+GLOBAL NEWS AI - PHIÊN BẢN V7 (SỬA LỖI TRÙNG BÀI & CHUYÊN MỤC CÁ NHÂN)
 ================================================================================
-- Các chuyên mục cá nhân tự tạo (My Topics) tự động truy vấn trực tiếp từ các
-  trang tìm kiếm tin tức (Google News Search tiếng Việt & Quốc tế, Bing News
-  Search) kết hợp kho tin tòa soạn.
-- Bộ lọc chống trùng lặp 3 lớp (URL chuẩn hóa, dấu vân tay tiêu đề không dấu,
-  và độ tương đồng từ vựng Jaccard >= 78%) đảm bảo danh sách tin không bao giờ
-  bị lặp bài từ nhiều nguồn tổng hợp.
+1. CẤU TRÚC TỆP ĐẨY LÊN GITHUB:
+   - index.html
+   - style.css
+   - app.js
+   - config.js
+   - api/ai.js    (Xử lý Gemini 3.8 Flash & dịch tiêu đề/sapo)
+   - api/news.js  (MỚI: Truy vấn trực tiếp Google News Search & Bing News Search
+                   từ máy chủ Vercel để đổ tin vào "Chuyên mục của tôi")
+
+2. ĐIỂM CẢI TIẾN CHÍNH:
+   - Khử trùng lặp 2 tầng (cả lúc nạp dữ liệu lẫn lúc hiển thị và sau khi dịch
+     tiếng Việt), loại bỏ hoàn toàn các bài trùng từ Al Jazeera / NYT / Google.
+   - Bổ sung endpoint /api/news trên Vercel giúp các chuyên mục cá nhân tự tạo
+     luôn thu thập được tin tức mới nhất mà không bị chặn bởi rss2json.
 ================================================================================

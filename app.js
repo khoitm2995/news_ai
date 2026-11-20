@@ -407,7 +407,7 @@
       try {
         const cached = JSON.parse(localStorage.getItem(STORAGE_KEYS.CACHE_NEWS) || "null");
         if (cached && Date.now() - cached.timestamp < config.CACHE_TTL_MS && cached.articles?.length > 0) {
-          state.articles = cached.articles;
+          state.articles = deduplicateArticleArray(cached.articles);
           state.clusters = clusterArticles(state.articles);
           state.rssSuccessCount = cached.successCount || 1;
           state.lastUpdated = new Date(cached.timestamp);
@@ -580,6 +580,7 @@
           localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(translationMemory));
           applyCachedTranslations(state.articles);
           applyCachedTranslations(state.socialPosts);
+          state.articles = deduplicateArticleArray(state.articles);
           state.clusters = clusterArticles(state.articles);
           updateHeaderAndSidebarStats();
           renderCurrentView();
@@ -834,13 +835,13 @@
       .join("");
   }
 
-  // Chuẩn hóa URL & Tiêu đề để khử trùng lặp tuyệt đối giữa các luồng tìm kiếm
+  // Chuẩn hóa URL & Tiêu đề để khử trùng lặp tuyệt đối trên toàn bộ hệ thống
   function normalizeNewsUrl(rawUrl) {
     if (!rawUrl) return "";
     try {
       const u = new URL(rawUrl);
       u.hash = "";
-      ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "oc", "ved", "usg"].forEach((p) =>
+      ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "oc", "ved", "usg", "ref"].forEach((p) =>
         u.searchParams.delete(p)
       );
       return (u.origin + u.pathname + u.search).toLowerCase().replace(/\/+$/, "");
@@ -854,11 +855,12 @@
     return title
       .toLowerCase()
       .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .replace(/\p{Diacritic}/gu, "")
+      .replace(/đ/g, "d")
+      .replace(/[^a-z0-9\s]/g, " ")
       .replace(/\s+/g, " ")
       .trim()
-      .slice(0, 64);
+      .slice(0, 72);
   }
 
   function isDuplicateNewsArticle(candidate, existingList, seenUrls, seenFingerprints) {
@@ -867,14 +869,17 @@
     const curFp = normalizeTitleFingerprint(candidate.title);
 
     if (normUrl && seenUrls.has(normUrl)) return true;
-    if (origFp && origFp.length >= 12 && seenFingerprints.has(origFp)) return true;
-    if (curFp && curFp.length >= 12 && seenFingerprints.has(curFp)) return true;
+    if (origFp && origFp.length >= 10 && seenFingerprints.has(origFp)) return true;
+    if (curFp && curFp.length >= 10 && seenFingerprints.has(curFp)) return true;
 
-    // Kiểm tra độ trùng khớp từ vựng (Jaccard >= 0.78) để loại các bản tin đăng lại y hệt từ aggregator
-    const candTokens = new Set((origFp || curFp).split(" ").filter((w) => w.length > 2));
+    // So sánh độ trùng từ vựng (Jaccard >= 0.72) để loại bỏ các bài đăng lại giống nhau khác nguồn/giờ
+    const activeFp = curFp.length >= origFp.length ? curFp : origFp;
+    const candTokens = new Set(activeFp.split(" ").filter((w) => w.length > 2));
     if (candTokens.size >= 4) {
       for (const item of existingList) {
-        const itemFp = normalizeTitleFingerprint(item.originalTitle || item.title);
+        const itemOrigFp = normalizeTitleFingerprint(item.originalTitle || item.title);
+        const itemCurFp = normalizeTitleFingerprint(item.title);
+        const itemFp = itemCurFp.length >= itemOrigFp.length ? itemCurFp : itemOrigFp;
         const itemTokens = new Set(itemFp.split(" ").filter((w) => w.length > 2));
         if (itemTokens.size < 4) continue;
         let inter = 0;
@@ -882,23 +887,35 @@
           if (itemTokens.has(t)) inter++;
         });
         const union = candTokens.size + itemTokens.size - inter;
-        if (union > 0 && inter / union >= 0.78) {
+        if (union > 0 && inter / union >= 0.72) {
           return true;
         }
       }
     }
 
     if (normUrl) seenUrls.add(normUrl);
-    if (origFp && origFp.length >= 12) seenFingerprints.add(origFp);
-    if (curFp && curFp.length >= 12) seenFingerprints.add(curFp);
+    if (origFp && origFp.length >= 10) seenFingerprints.add(origFp);
+    if (curFp && curFp.length >= 10) seenFingerprints.add(curFp);
     return false;
   }
 
-  // Truy vấn dữ liệu thật cho chuyên mục cá nhân từ Trang tìm kiếm Tin tức (Google News Search + Bing News Search) & Kho tin tòa soạn
+  function deduplicateArticleArray(list) {
+    const seenUrls = new Set();
+    const seenFingerprints = new Set();
+    const cleanList = [];
+    (Array.isArray(list) ? list : []).forEach((art) => {
+      if (art && art.title && !isDuplicateNewsArticle(art, cleanList, seenUrls, seenFingerprints)) {
+        cleanList.push(art);
+      }
+    });
+    return cleanList;
+  }
+
+  // Truy vấn dữ liệu thật cho chuyên mục cá nhân từ Vercel News Search (/api/news) + RSS dự phòng + Kho tin tòa soạn
   async function fetchLiveContentForTopic(topic, forceRefresh = false) {
     if (!topic) return;
     const existing = state.topicFeedCache[topic.id];
-    if (!forceRefresh && existing && Date.now() - existing.timestamp < 5 * 60 * 1000) {
+    if (!forceRefresh && existing && Date.now() - existing.timestamp < 5 * 60 * 1000 && existing.articles.length > 0) {
       return existing;
     }
 
@@ -911,113 +928,103 @@
 
     const lowerTerms = terms.map((t) => t.toLowerCase());
 
-    // 1. Lọc ngữ nghĩa từ kho bài báo quốc tế hiện có trên tòa soạn
+    // 1. Lọc ngữ nghĩa từ kho bài báo quốc tế hiện có trên tòa soạn (kiểm tra cả tiếng Việt đã dịch lẫn tiếng Anh gốc)
     const matchedLocalArticles = state.articles.filter((art) => {
       const text = `${art.title} ${art.originalTitle || ""} ${art.description} ${art.originalDescription || ""}`.toLowerCase();
       return lowerTerms.some((term) => text.includes(term));
     });
 
-    // 2. Truy vấn trực tiếp trang Tìm kiếm Tin tức (News Search: Google News Search & Bing News Search)
+    // 2. Truy vấn trực tiếp trang Tìm kiếm Tin tức qua Vercel Serverless Function (/api/news)
     let fetchedPressArticles = [];
     if (topic.sources?.press !== false && terms.length > 0) {
-      const primaryTerms = terms.slice(0, 6).map((t) => (t.includes(" ") ? `"${t}"` : t)).join(" OR ");
-      const searchFeeds = [
-        // Trang tìm kiếm Google News (Tiếng Việt)
-        {
-          url: `https://news.google.com/rss/search?q=${encodeURIComponent(primaryTerms)}&hl=vi&gl=VN&ceid=VN:vi`,
-          tag: "Google News Search"
-        },
-        // Trang tìm kiếm Bing News (Quốc tế / Đa ngôn ngữ)
-        {
-          url: `https://www.bing.com/news/search?q=${encodeURIComponent(primaryTerms)}&format=rss`,
-          tag: "Bing News Search"
-        }
-      ];
-
-      if (topic.region !== "Việt Nam") {
-        // Trang tìm kiếm Google News (Quốc tế - Tiếng Anh)
-        searchFeeds.push({
-          url: `https://news.google.com/rss/search?q=${encodeURIComponent(primaryTerms)}&hl=en-US&gl=US&ceid=US:en`,
-          tag: "Google News Global"
-        });
+      const isWeb = window.location.protocol.startsWith("http");
+      // Tạo truy vấn tìm kiếm gọn và hiệu quả (tối đa 4 từ khóa chính nối bằng OR)
+      const searchQueries = [];
+      searchQueries.push(terms.slice(0, 4).map((t) => (t.includes(" ") ? `"${t}"` : t)).join(" OR "));
+      if (terms.length > 4) {
+        searchQueries.push(terms.slice(4, 8).map((t) => (t.includes(" ") ? `"${t}"` : t)).join(" OR "));
       }
 
-      // Truy vấn thêm theo từng nhân vật / thực thể trọng tâm nếu có nhiều từ khóa
-      if (terms.length > 2) {
-        const secondaryTerms = terms.slice(1, 5).map((t) => (t.includes(" ") ? `"${t}"` : t)).join(" OR ");
-        searchFeeds.push({
-          url: `https://news.google.com/rss/search?q=${encodeURIComponent(secondaryTerms)}&hl=en-US&gl=US&ceid=US:en`,
-          tag: "News Search Entities"
-        });
-      }
+      for (let qIdx = 0; qIdx < searchQueries.length; qIdx++) {
+        const qStr = searchQueries[qIdx];
+        let itemsFromQuery = [];
 
-      const pressResults = await Promise.allSettled(
-        searchFeeds.map(async (feedObj, qIdx) => {
-          const api = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedObj.url)}`;
+        // Ưu tiên gọi /api/news trên Vercel (không bị lỗi CORS hay rss2json 422)
+        if (isWeb) {
           try {
-            const res = await fetch(api);
-            if (!res.ok) return [];
-            const data = await res.json();
-            if (data.status !== "ok" || !Array.isArray(data.items)) return [];
-            return data.items.slice(0, 15).map((item, idx) => {
-              const cleanTitle = stripHtml(item.title);
-              const parts = cleanTitle.split(" - ");
-              const publisher =
-                parts.length > 1 && parts[parts.length - 1].length <= 42
-                  ? parts.pop().trim()
-                  : item.author || feedObj.tag;
-              const pureTitle = parts.join(" - ").trim() || cleanTitle;
-              const cleanDesc = stripHtml(item.description || "");
-              return {
-                id: `topic-news-${topic.id}-${qIdx}-${idx}-${pureTitle.length}`,
-                title: pureTitle,
-                description: cleanDesc || `Kết quả từ trang tìm kiếm tin tức cho chủ đề ${topic.name} (${publisher}).`,
-                fullContent: cleanDesc,
-                link: item.link,
-                pubDate: item.pubDate || new Date().toISOString(),
-                source: publisher,
-                author: publisher,
-                image: item.thumbnail || (item.enclosure && item.enclosure.link) || buildFallbackImage(publisher, "the-gioi"),
-                category: classifyArticle(pureTitle, cleanDesc, "the-gioi"),
-                region: topic.region || "Toàn cầu",
-                isBreaking: isBreakingStory(item.pubDate, pureTitle)
-              };
-            });
-          } catch (e) {
-            return [];
-          }
-        })
-      );
+            const apiRes = await fetch(`/api/news?q=${encodeURIComponent(qStr)}&region=${encodeURIComponent(topic.region || "Toàn cầu")}`);
+            if (apiRes.ok) {
+              const json = await apiRes.json();
+              if (Array.isArray(json.items)) {
+                itemsFromQuery = json.items;
+              }
+            }
+          } catch (e) {}
+        }
 
-      pressResults.forEach((r) => {
-        if (r.status === "fulfilled") fetchedPressArticles = fetchedPressArticles.concat(r.value);
-      });
+        // Dự phòng nếu mở file:// cục bộ hoặc /api/news chưa phản hồi: dùng AllOrigins XML proxy
+        if (itemsFromQuery.length === 0) {
+          const fallbackUrls = [
+            `https://news.google.com/rss/search?q=${encodeURIComponent(qStr)}&hl=vi&gl=VN&ceid=VN:vi`,
+            `https://news.google.com/rss/search?q=${encodeURIComponent(qStr)}&hl=en-US&gl=US&ceid=US:en`
+          ];
+          const settledFb = await Promise.allSettled(
+            fallbackUrls.map(async (u) => {
+              const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(u)}`);
+              if (!r.ok) return [];
+              const d = await r.json();
+              if (!d.contents) return [];
+              const doc = new DOMParser().parseFromString(d.contents, "text/xml");
+              return Array.from(doc.querySelectorAll("item")).slice(0, 12).map((node) => {
+                const rawT = stripHtml(node.querySelector("title")?.textContent || "");
+                const parts = rawT.split(" - ");
+                const src = parts.length > 1 ? parts.pop().trim() : "Google News";
+                return {
+                  title: parts.join(" - ").trim() || rawT,
+                  description: stripHtml(node.querySelector("description")?.textContent || ""),
+                  link: node.querySelector("link")?.textContent?.trim() || "",
+                  pubDate: node.querySelector("pubDate")?.textContent || new Date().toISOString(),
+                  source: src
+                };
+              });
+            })
+          );
+          settledFb.forEach((s) => {
+            if (s.status === "fulfilled") itemsFromQuery = itemsFromQuery.concat(s.value);
+          });
+        }
+
+        itemsFromQuery.forEach((item, idx) => {
+          const pureTitle = stripHtml(item.title || "");
+          if (!pureTitle) return;
+          const cleanDesc = stripHtml(item.description || "");
+          const publisher = item.source || "Tin Quốc tế";
+          fetchedPressArticles.push({
+            id: `topic-news-${topic.id}-${qIdx}-${idx}-${pureTitle.length}`,
+            title: pureTitle,
+            description: cleanDesc || `Tin tức liên quan đến chuyên mục ${topic.name} từ ${publisher}.`,
+            fullContent: cleanDesc,
+            link: item.link,
+            pubDate: item.pubDate || new Date().toISOString(),
+            source: publisher,
+            author: publisher,
+            image: item.image || buildFallbackImage(publisher, "the-gioi"),
+            category: classifyArticle(pureTitle, cleanDesc, "the-gioi"),
+            region: topic.region || "Toàn cầu",
+            isBreaking: isBreakingStory(item.pubDate, pureTitle)
+          });
+        });
+      }
     }
 
-    // Hợp nhất & khử trùng lặp tuyệt đối theo URL chuẩn hóa + dấu vân tay tiêu đề + độ tương đồng từ vựng
-    const allTopicArticlesRaw = [...matchedLocalArticles, ...fetchedPressArticles];
-    const seenUrls = new Set();
-    const seenFingerprints = new Set();
-    const uniqueTopicArticles = [];
+    // Hợp nhất & khử trùng lặp tuyệt đối
+    const allTopicArticlesRaw = [...matchedLocalArticles, ...fetchedPressArticles].sort(
+      (a, b) => new Date(b.pubDate) - new Date(a.pubDate)
+    );
+    const uniqueTopicArticles = deduplicateArticleArray(allTopicArticlesRaw);
 
-    allTopicArticlesRaw
-      .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-      .forEach((art) => {
-        if (!art.title) return;
-        if (!isDuplicateNewsArticle(art, uniqueTopicArticles, seenUrls, seenFingerprints)) {
-          uniqueTopicArticles.push(art);
-          // Đưa vào kho bài báo chung (cũng kiểm tra chống trùng) để mở đọc chi tiết & chat AI
-          const globalDup = state.articles.some(
-            (ex) =>
-              ex.id === art.id ||
-              (art.link && ex.link && normalizeNewsUrl(ex.link) === normalizeNewsUrl(art.link)) ||
-              normalizeTitleFingerprint(ex.originalTitle || ex.title) === normalizeTitleFingerprint(art.originalTitle || art.title)
-          );
-          if (!globalDup) {
-            state.articles.push(art);
-          }
-        }
-      });
+    // Đưa các bài mới tìm được vào kho state.articles (đã khử trùng) để mở đọc chi tiết & hỏi AI
+    state.articles = deduplicateArticleArray([...state.articles, ...uniqueTopicArticles]);
 
     // 3. Truy vấn thời gian thực từ Reddit Search API công khai cho Mạng xã hội & Video
     let topicSocialPosts = [];
@@ -1814,7 +1821,8 @@ QUY TẮC TRẢ LỜI BẮT BUỘC (TIẾNG VIỆT):
   }
 
   function getFilteredArticles(categoryFilter = null) {
-    return state.articles.filter((art) => {
+    const dedupedPool = deduplicateArticleArray(state.articles);
+    return dedupedPool.filter((art) => {
       if (categoryFilter === "tin-nong" && !art.isBreaking) return false;
       if (
         categoryFilter &&
